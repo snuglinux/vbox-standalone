@@ -1,0 +1,72 @@
+#!/bin/bash
+
+DIALOG=${DIALOG=Xdialog}
+dialog_poweroff(){
+   KEYBOARD_ID=`xinput --list | grep -i -m 1 'USB Keyboard' | grep "slave  keyboard" | grep -o 'id=[0-9]\+' | grep -o '[0-9]\+'`
+   if [ -z "$KEYBOARD_ID" ]; then
+      KEYBOARD_ID=`xinput --list | grep -i -m 1 'AT Translated Set 2 keyboard' | grep "slave  keyboard" | grep -o 'id=[0-9]\+' | grep -o '[0-9]\+'`
+   fi
+   STATE1=$(xinput --query-state $KEYBOARD_ID | grep 'key\[' | sort)
+
+   COUNT=10
+   ( while test $COUNT != 110; do
+
+       STATE2=$(xinput --query-state $KEYBOARD_ID | grep 'key\[' | sort)
+       KEY=`comm -13 <(echo "$STATE1") <(echo "$STATE2")`;
+       if ! [ -z `echo "$KEY" | grep 'key\[9\]=down'` ]; then
+          dialog_menu;
+          COUNT=10
+       fi
+       STATE1=$STATE2
+       echo $COUNT
+       echo "XXX"
+       echo "To interrupt the shutdown and enter the action menu, press Esc on the keyboard."
+       echo "XXX"
+       COUNT=`expr $COUNT + 10`
+       sleep 0.5
+    done ) | $DIALOG --title "Computer shutdown" --gauge "Hi, this is a gauge widget" 10 188 10
+    clear
+    systemctl poweroff -i
+}
+
+dialog_menu(){
+   HEIGHT=15
+   WIDTH=40
+   CHOICE_HEIGHT=3
+   BACKTITLE="Backtitle here"
+   TITLE="Control Panel"
+   MENU="Choose one of the following options:"
+   OPTIONS=(1 "Oracle VM VirtualBox"
+            2 "PulseAudio Volume Control")
+   CHOICE=$($DIALOG --clear \
+                   --backtitle "$BACKTITLE" \
+                   --title "$TITLE" \
+                   --menu "$MENU" \
+                   $HEIGHT $WIDTH $CHOICE_HEIGHT \
+                   "${OPTIONS[@]}" \
+                   2>&1 >/dev/tty)
+   clear
+   case $CHOICE in
+           1)
+               VirtualBox
+               ;;
+           2)
+               pavucontrol
+               ;;
+   esac
+}
+
+CONF="/etc/vbox-standalone.conf"
+if ! [ -f $CONF ]; then
+   echo "File not found $CONF"
+   exit
+fi
+source $CONF
+if [ -z $VBoxVM ]; then
+   echo "The 'VBoxVM' parameter was not found in the configuration file"
+   exit
+fi
+
+xfwm4 &
+/usr/lib/virtualbox/VirtualBoxVM --startvm $VBoxVM --fullscreen
+dialog_poweroff
