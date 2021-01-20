@@ -64,9 +64,11 @@ fi
 source $CONF
 if [ -z $VBoxVM ]; then
    echo "The 'VBoxVM' parameter was not found in the configuration file"
-   exit
+   xfwm4 &
+   VirtualBox
+else
+   xfwm4 &
+   /usr/lib/virtualbox/VirtualBoxVM --startvm $VBoxVM --fullscreen
 fi
 
-xfwm4 &
-/usr/lib/virtualbox/VirtualBoxVM --startvm $VBoxVM --fullscreen
 dialog_poweroff
